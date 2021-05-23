@@ -8,10 +8,6 @@ const config = require('../config');
 const { getSheetNameByDate } = require('./utils');
 
 const low = require('lowdb');
-const FileSync = require('lowdb/adapters/FileSync');
-const adapter = new FileSync('data/db.json');
-const db = low(adapter);
-db.defaults({ metrics: [] }).write();
 
 const sheetNames = [
   // 'Июнь 2020',
@@ -185,8 +181,17 @@ async function dataSheetToMetrics() {
   return metrics;
 }
 
+async function initDb() {
+  const FileSync = require('lowdb/adapters/FileSync');
+  const adapter = new FileSync('data/db.json');
+  const db = low(adapter);
+  db.defaults({ metrics: [] }).write();
+  return db;
+}
+
 async function sendToInflux(metrics) {
   const influx = initInflux(config);
+  const db = initDb();
 
   const points = [];
 
@@ -259,12 +264,20 @@ async function setMetric(m, opts) {
     process.exit(1);
   }
 
-  if (!opts.overwrite && cell.value !== '') {
-    console.log(`do not overwrite: ${cell.value}`);
+  const value = parseInt(m.value);
+
+  if (cell.value === value) {
+    console.log(`already recorded: ${value}`);
     return false;
   }
 
-  cell.value = parseInt(m.value);
+  if (!opts.overwrite && cell.value !== '' && cell.value !== null) {
+    console.log(`already recorded: ${cell.value}, do not overwrite:`);
+    return false;
+  }
+
+  // write
+  cell.value = value;
   await sheet.saveUpdatedCells();
 }
 
