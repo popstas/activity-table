@@ -191,7 +191,7 @@ async function initDb() {
 
 async function sendToInflux(metrics) {
   const influx = initInflux(config);
-  const db = initDb();
+  const db = await initDb();
 
   const points = [];
 

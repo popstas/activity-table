@@ -1,4 +1,4 @@
-const {processMonthSheet} = require('./actions');
+const {processMonthSheet, sendToInflux} = require('./actions');
 const {currentMonthSheetName} = require('./utils');
 
 async function start() {
