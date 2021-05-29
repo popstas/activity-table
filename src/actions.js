@@ -3,26 +3,13 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { format } = require('date-fns');
 const fs = require('fs');
 const Influx = require('influx');
+const ical = require('ical-generator');
 
 const config = require('../config');
+// const packageJson = require('../package.json');
 const { getSheetNameByDate } = require('./utils');
 
 const low = require('lowdb');
-
-const sheetNames = [
-  // 'Июнь 2020',
-  // 'Июль 2020',
-  // 'Август 2020',
-  // 'Сентябрь 2020',
-  // 'Октябрь 2020',
-  // 'Ноябрь 2020',
-  // 'Декабрь 2020',
-  // 'Январь 2021',
-  // 'Февраль 2021',
-  // 'Март 2021',
-  // 'Апрель 2021',
-  // 'Май 2021',
-];
 
 const excludedIndicators = [];
 
@@ -54,7 +41,7 @@ async function loadSheet(sheetName) {
 }
 
 async function processMonthSheet({ sheetName }) {
-  console.log('sheetName:' + sheetName);
+  // console.log('sheetName: ' + sheetName);
 
   const sheet = await loadSheet(sheetName);
 
@@ -112,13 +99,17 @@ function writeToTxt(data, filePath) {
 // sheets to data.txt
 // not used
 async function sheetsToData(sheetNames) {
+  const items = [];
   for (let sheetName of sheetNames) {
     const data = await processMonthSheet({ sheetName });
+    items.push(...data);
     // console.log('data: ', data);
 
     // writeToTxt(data, `data/${sheetName}.txt`);
     writeToTxt(data, `data/data.txt`);
   }
+
+  return items;
 }
 
 function initInflux(options) {
@@ -225,6 +216,47 @@ async function sendToInflux(metrics) {
   console.log(`sent ${points.length} points`);
 }
 
+function getCalendars( { metrics }) {
+  const calendars = {};
+
+  // const metricsFiltered = metrics.filter(m => m.indicator === indicator);
+  for (let m of metrics) {
+    if (!calendars[m.indicator])
+    calendars[m.indicator] = ical({
+      name: m.indicator,
+      timezone: 'GMT+05:00',
+    });
+    
+    createEvent(calendars[m.indicator], m);
+  }
+
+  return calendars;
+}
+
+function createEvent(calendar, m) {
+  const nameMap = {
+    'Делал задачи из домашнего списка': 'Домашние дела',
+    'Лёг спать до полуночи': 'Лёг спать рано',
+    'Встал с первым будильником': 'Встал сразу',
+  };
+  const summary = nameMap[m.indicator] || m.indicator;
+
+  try {
+    calendar.createEvent({
+      start: new Date(`${m.date}T05:00:00`),
+      allDay: true, //new Date(new Date(`${m.date}T00:00:00 GMT+5`).getTime() + 86400000),
+      summary: summary + (!m.value ? ': нет' : ''),
+      status: m.value ? 'CONFIRMED' : 'CANCELLED',
+      description: `${m.date}: ${m.indicator}: ${m.value}`
+    });
+    return true;
+  }
+  catch(e) {
+    console.log(e);
+    return false;
+  }
+}
+
 async function getCellByMetric(sheet, m) {
   // перебираем колонки дат
   for (let colNum = indicatorColNum + 1; colNum < maxColNum; colNum++) {
@@ -282,7 +314,9 @@ async function setMetric(m, opts) {
 }
 
 module.exports = {
+  getCalendars,
   processMonthSheet,
   sendToInflux,
   setMetric,
+  sheetsToData,
 };

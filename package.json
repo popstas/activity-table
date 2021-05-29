@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
-    "cron-daily": "node src/send-current-month"
+    "cron-daily": "node src/send-current-month",
+    "generate-calendar": "node src/generate-calendar",
+    "parse-data": "node src/parse-data",
+    "update-data": "node src/update-data"
   },
   "author": "",
   "license": "ISC",
@@ -13,7 +16,9 @@
     "commander": "^7.2.0",
     "date-fns": "^2.21.3",
     "google-spreadsheet": "^3.1.15",
+    "ical-generator": "^2.2.0",
     "influx": "^5.9.0",
-    "lowdb": "^1.0.0"
+    "lowdb": "^1.0.0",
+    "sanitize-filename": "^1.6.3"
   }
 }
