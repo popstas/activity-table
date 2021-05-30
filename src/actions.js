@@ -241,6 +241,8 @@ function createEvent(calendar, m) {
   };
   const summary = nameMap[m.indicator] || m.indicator;
 
+  if (!m.value) return; // не создавать нулевые события
+
   try {
     calendar.createEvent({
       start: new Date(`${m.date}T05:00:00`),
