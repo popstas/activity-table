@@ -1,11 +1,18 @@
 const fs = require('fs');
 
 const {processMonthSheet} = require('./actions');
-const {currentMonthSheetName} = require('./utils');
+const {currentMonthSheetName, getSheetNameByDate} = require('./utils');
 
 
 async function start() {
   const metrics = await processMonthSheet({ sheetName: currentMonthSheetName() });
+
+  // Данные за последнее число месяца не доходят, если я их заполнил после 23
+  // Поэтому 1-го числа подгружаем ещё и прошлый месяц
+  if (new Date().getDate() == 1) {
+    const prevMonthSheetName = getSheetNameByDate(Date.now() - (86400000 * 1));
+    metrics.push(...await processMonthSheet({ sheetName: prevMonthSheetName }));
+  }
 
   try {
     const items = JSON.parse(fs.readFileSync('data/items.json', 'utf-8'));

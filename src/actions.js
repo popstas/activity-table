@@ -48,7 +48,7 @@ async function processMonthSheet({ sheetName }) {
   const metrics = [];
 
   // перебираем колонки дат
-  for (let colNum = indicatorColNum + 1; colNum < maxColNum; colNum++) {
+  for (let colNum = indicatorColNum + 1; colNum < sheet.columnCount; colNum++) {
     // console.log(`${dateRowNum}, ${colNum}`);
     const dateCell = sheet.getCell(dateRowNum, colNum);
     if (!dateCell.value) continue;
@@ -61,7 +61,7 @@ async function processMonthSheet({ sheetName }) {
     if (!currentDate) continue;
 
     // get indicators for day
-    for (let rowNum = dateRowNum + 1; rowNum < maxRowNum; rowNum++) {
+    for (let rowNum = dateRowNum + 1; rowNum < sheet.rowCount; rowNum++) {
       const m = { date: currentDate };
       const indicatorCell = sheet.getCell(rowNum, indicatorColNum);
       m.indicator = indicatorCell.value;
