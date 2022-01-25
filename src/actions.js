@@ -300,18 +300,20 @@ async function setMetric(m, opts) {
 
   const value = parseInt(m.value);
 
-  if (cell.value === value) {
+  const isAdd = m.value.match(/^\+/);
+
+  if (cell.value === value && !isAdd) {
     console.log(`already recorded: ${value}`);
     return false;
   }
 
-  if (!opts.overwrite && cell.value !== '' && cell.value !== null) {
+  if (!opts.overwrite && !isAdd && cell.value !== '' && cell.value !== null) {
     console.log(`already recorded: ${cell.value}, do not overwrite:`);
     return false;
   }
 
   // write
-  cell.value = value;
+  cell.value = isAdd ? parseInt(cell.value) + value : value;
   await sheet.saveUpdatedCells();
 }
 
