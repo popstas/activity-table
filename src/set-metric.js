@@ -3,6 +3,7 @@ const pjson = require('../package.json');
 const { format } = require('date-fns');
 const { setMetric } = require('./actions');
 
+const hoursOffset = 6;
 
 program.name(pjson.name);
 program.version(pjson.verion);
@@ -19,7 +20,7 @@ async function start() {
 
   const options = program.opts();
 
-  if (!options.date) options.date = format(new Date(), 'yyyy-MM-dd');
+  if (!options.date) options.date = format(Date.now() - hoursOffset * 3600000, 'yyyy-MM-dd');
 
   const m = {
     indicator: options.indicator,
