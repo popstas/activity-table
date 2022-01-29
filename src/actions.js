@@ -313,7 +313,9 @@ async function setMetric(m, opts) {
   }
 
   // write
-  cell.value = isAdd ? parseInt(cell.value) + value : value;
+  const cellValue = parseInt(cell.value) || 0;
+  cell.value = isAdd ? cellValue + value : value;
+  // console.log(isAdd ? parseInt(cell.value) + value : value);
   await sheet.saveUpdatedCells();
 }
 
