@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
-    "cron-daily": "node src/send-current-month",
+    "cron-daily": "npm run send-current-month",
+    "send-current-month": "node src/send-current-month",
+    "send-prev-month": "node src/send-prev-month",
     "generate-calendar": "node src/generate-calendar",
     "parse-data": "node src/parse-data",
     "update-data": "node src/update-data"
