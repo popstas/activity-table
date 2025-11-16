@@ -1,4 +1,5 @@
 const fs = require('fs');
+const sqlite = require('./sqlite');
 
 const {processMonthSheet} = require('./actions');
 const {currentMonthSheetName, getSheetNameByDate} = require('./utils');
@@ -37,6 +38,12 @@ async function start() {
 
   console.log('total items: ', items.length);
   fs.writeFileSync('data/items.json', JSON.stringify(items));
+  try {
+    sqlite.upsertItems(items);
+    console.log('items mirrored to SQLite');
+  } catch (e) {
+    console.log('SQLite mirror error: ', e?.message || e);
+  }
 }
 
 start();

@@ -1,5 +1,6 @@
 // const axios = require('axios');
-const { GoogleSpreadsheet } = require('google-spreadsheet');
+const gs = require('google-spreadsheet');
+const GoogleSpreadsheet = gs.GoogleSpreadsheet || gs.default || gs;
 const { format } = require('date-fns');
 const fs = require('fs');
 process.env.DEBUG = 'influx*';
@@ -9,6 +10,7 @@ const ical = require('ical-generator');
 const config = require('../config');
 // const packageJson = require('../package.json');
 const { getSheetNameByDate } = require('./utils');
+const sqlite = require('./sqlite');
 
 const low = require('lowdb');
 
@@ -24,10 +26,59 @@ const pointsLimit = 10000;
 
 
 
+async function authDoc(doc) {
+  if (typeof doc.useServiceAccountAuth === 'function') {
+    await doc.useServiceAccountAuth({
+      client_email: config.client_email,
+      private_key: config.private_key,
+    });
+    return;
+  }
+  // Newer versions: set auth request hook with OAuth2 bearer token
+  if (typeof doc._setAuthRequestHook === 'function') {
+    const { JWT } = require('google-auth-library');
+    const scopes = [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive',
+    ];
+    const client = new JWT({
+      email: config.client_email,
+      key: config.private_key,
+      scopes,
+    });
+    // google-spreadsheet accepts an auth object with getRequestHeaders
+    const auth = {
+      async getRequestHeaders() {
+        return await client.getRequestHeaders();
+      }
+    };
+    doc._setAuthRequestHook(auth);
+    return;
+  }
+  throw new Error('GoogleSpreadsheet auth method not found (useServiceAccountAuth/_setAuthRequestHook). Check google-spreadsheet version.');
+}
+
 async function loadSheet(sheetName) {
   // load doc, sheet, rows
-  const doc = new GoogleSpreadsheet(config.sheetId);
-  await doc.useServiceAccountAuth(config);
+  let doc;
+  // Newer API authenticates via constructor
+  if (typeof GoogleSpreadsheet === 'function' && GoogleSpreadsheet.prototype && typeof GoogleSpreadsheet.prototype._setAuthRequestHook === 'function') {
+    const { JWT } = require('google-auth-library');
+    const scopes = [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive',
+    ];
+    const client = new JWT({
+      email: config.client_email,
+      key: config.private_key,
+      scopes,
+    });
+    doc = new GoogleSpreadsheet(config.sheetId, client);
+  } else {
+    // Legacy API path
+    doc = new GoogleSpreadsheet(config.sheetId);
+    await authDoc(doc);
+  }
   await doc.loadInfo();
 
   const sheet = doc.sheetsByTitle[sheetName]; // or use doc.sheetsById[id] or doc.sheetsByTitle[title]
@@ -167,6 +218,12 @@ async function sheetsToData(sheetNames, saveTo=null) {
       fs.writeFileSync(saveTo, JSON.stringify(items));
       console.log (`${sheetName} saved to ${saveTo}`);
       console.log('total items: ', items.length);
+      try {
+        sqlite.upsertItems(items);
+        console.log('items mirrored to SQLite');
+      } catch (e) {
+        console.log('SQLite mirror error: ', e?.message || e);
+      }
     }
     // writeToTxt(data, `data/${sheetName}.txt`);
     writeToTxt(data, `data/data.txt`);

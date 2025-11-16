@@ -3,6 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio';
 import { format } from 'date-fns';
 import { z } from 'zod';
 import { aggregateActivity, listMetrics, queryActivity, rowsToCompact } from './data';
+import { all as sqlAll, getSchemaDescription } from './sqlite';
 // actions.js is CommonJS; tsx supports interop via require
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { setMetric } = require('../actions');
@@ -35,7 +36,7 @@ async function main() {
     {
       tag: z.string().optional(),
     },
-    async (input) => {
+    async (input: any) => {
       const tag = input?.tag;
       const data = listMetrics({ tag });
       return {
@@ -137,6 +138,46 @@ async function main() {
           {
             type: 'text',
             text: `Entry recorded: ${metric} ${date} = ${value}`,
+          },
+        ],
+      };
+    }
+  );
+
+  // SQL query tool over SQLite mirror with full schema description
+  server.tool(
+    'activity_sql_query',
+    (() => {
+      const schema = getSchemaDescription();
+      const columns = schema.columns.map(
+        (c) => `- ${c.name} (${c.type}): ${c.description}`
+      ).join('\n');
+      return [
+        'Выполнить SQL-запрос к SQLite зеркалу данных items.json.',
+        '',
+        `Таблица: ${schema.table}`,
+        'Колонки:',
+        columns,
+        '',
+        `Первичный ключ: (${schema.primaryKey.join(', ')})`,
+        `Файл БД: ${schema.path}`,
+        '',
+        'Пример: SELECT date, indicator, value FROM items WHERE indicator = ? AND date BETWEEN ? AND ? ORDER BY date;',
+      ].join('\n');
+    })(),
+    {
+      sql: z.string(),
+      params: z.array(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+    },
+    async (input) => {
+      const sql = input.sql;
+      const params = input.params || [];
+      const rows = sqlAll(sql, params);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ rows }),
           },
         ],
       };
