@@ -6,7 +6,7 @@ async function start() {
   const metrics = await processMonthSheet({ sheetName: currentMonthSheetName() });
 
   // досылает в influx индикаторы, которых там ещё нет
-  sendToInflux(metrics);
+  sendToInflux(metrics, true);
 }
 
 start();

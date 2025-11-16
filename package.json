@@ -8,8 +8,10 @@
     "cron-daily": "npm run send-current-month",
     "send-current-month": "node src/send-current-month",
     "send-prev-month": "node src/send-prev-month",
+    "send-months": "node src/send-months",
     "generate-calendar": "node src/generate-calendar",
     "parse-data": "node src/parse-data",
+    "data-gpt": "node src/data-gpt",
     "update-data": "node src/update-data"
   },
   "author": "",
@@ -17,7 +19,7 @@
   "dependencies": {
     "commander": "^7.2.0",
     "date-fns": "^2.21.3",
-    "google-spreadsheet": "^3.1.15",
+    "google-spreadsheet": "^3.3.0",
     "ical-generator": "^2.2.0",
     "influx": "^5.9.0",
     "lowdb": "^1.0.0",

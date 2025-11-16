@@ -4,7 +4,13 @@ const fs = require('fs');
 
 async function start() {
   try {
-    const metrics = JSON.parse(fs.readFileSync('data/items.json', 'utf-8'));
+    const data = JSON.parse(fs.readFileSync('data/db.json', 'utf-8'));
+    const metrics = data.metrics;
+    // exit if no data
+    if (!metrics || metrics.length === 0) {
+      console.log('no data');
+      return;
+    }
 
     const calendars = getCalendars( { metrics });
 

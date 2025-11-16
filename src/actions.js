@@ -2,6 +2,7 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { format } = require('date-fns');
 const fs = require('fs');
+process.env.DEBUG = 'influx*';
 const Influx = require('influx');
 const ical = require('ical-generator');
 
@@ -15,8 +16,9 @@ const excludedIndicators = [];
 
 const dateRowNum = 0;
 const indicatorColNum = 1;
-const maxRowNum = 30;
+const maxRowNum = 45;
 const maxColNum = 35;
+let tagsColNum = 34;
 
 const pointsLimit = 10000;
 
@@ -29,12 +31,13 @@ async function loadSheet(sheetName) {
   await doc.loadInfo();
 
   const sheet = doc.sheetsByTitle[sheetName]; // or use doc.sheetsById[id] or doc.sheetsByTitle[title]
+  console.log('sheetName: ', sheetName);
   // const rows = await sheet.getRows();
   await sheet.loadCells({
     startRowIndex: 0,
     startColumnIndex: 0,
     endRowIndex: maxRowNum + 10,
-    endColumnIndex: maxRowNum + 10,
+    endColumnIndex: maxColNum + 10,
   });
 
   return sheet;
@@ -44,6 +47,7 @@ async function processMonthSheet({ sheetName }) {
   // console.log('sheetName: ' + sheetName);
 
   const sheet = await loadSheet(sheetName);
+  console.log('sheet loaded');
 
   const metrics = [];
 
@@ -52,17 +56,32 @@ async function processMonthSheet({ sheetName }) {
     // console.log(`${dateRowNum}, ${colNum}`);
     const dateCell = sheet.getCell(dateRowNum, colNum);
     if (!dateCell.value) continue;
+
+    if (dateCell.value == 'Теги') {
+      console.log('tagsColNum:', colNum);
+      tagsColNum = colNum;
+      continue;
+    }
+
     // console.log('dateCell.value: ', dateCell.value);
     const fromDate = new Date('1899-12-30T00:00:00');
     const delta = parseInt(dateCell.value) * 1000 * 86400;
     const d = new Date(fromDate.getTime() + delta);
 
-    let currentDate = format(d, 'yyyy-MM-dd');
+    let currentDate;
+    try {
+      currentDate = format(d, 'yyyy-MM-dd');
+    }
+    catch(e) {
+      console.log(`${dateCell.value} is not date`);
+    }
     if (!currentDate) continue;
 
-    // get indicators for day
-    for (let rowNum = dateRowNum + 1; rowNum < sheet.rowCount; rowNum++) {
+    // get indicators for a day
+    const maxRow = Math.min(sheet.rowCount, maxRowNum + 10);
+    for (let rowNum = dateRowNum + 1; rowNum < maxRow; rowNum++) {
       const m = { date: currentDate };
+      // console.log(`sheet.getCell(${rowNum}, ${indicatorColNum})`);
       const indicatorCell = sheet.getCell(rowNum, indicatorColNum);
       m.indicator = indicatorCell.value;
       
@@ -74,6 +93,17 @@ async function processMonthSheet({ sheetName }) {
       if (!m.indicator) continue;
 
       if (excludedIndicators.includes(m.indicator)) continue;
+
+      m.tags = sheet.getCell(rowNum, tagsColNum)
+        ?.value;
+      if (typeof m.tags === 'string') m.tags = m.tags
+        .split(',')
+        .map(tag => tag?.trim())
+        .filter(Boolean) || [];
+
+      // console.log('m.tags: ', m.tags);
+      
+      console.log(`${m.date} ${m.indicator}: ${m.value}`);
 
       metrics.push(m);
 
@@ -96,15 +126,48 @@ function writeToTxt(data, filePath) {
   console.log(`saved to ${filePath}`);
 }
 
+// items.json to items-gpt.json
+async function itemsToDataGpt() {
+  const items = JSON.parse(fs.readFileSync('data/items.json', 'utf-8'));
+  const metrics = {};
+  for (let item of items) {
+    // if (!item.date.includes('2023')) continue;
+    if (!metrics[item.indicator]) metrics[item.indicator] = {};
+    metrics[item.indicator][item.date] = item.value;
+    // if (!metrics[item.indicator]) metrics[item.indicator] = [];
+    // metrics[item.indicator].push(item.value);
+  }
+  return metrics;
+}
+
 // sheets to data.txt
-// not used
-async function sheetsToData(sheetNames) {
-  const items = [];
+async function sheetsToData(sheetNames, saveTo=null) {
+  const items = saveTo ? JSON.parse(fs.readFileSync('data/items.json', 'utf-8')) : [];
   for (let sheetName of sheetNames) {
+    console.log('month: ', sheetName);
     const data = await processMonthSheet({ sheetName });
-    items.push(...data);
+
+    for (let newItem of data) {
+      const found = items.find(item => {
+        return item.date == newItem.date &&
+          item.indicator == newItem.indicator
+      });
+      if (found) {
+        Object.assign(found, newItem);
+      } else {
+        items.push(newItem);
+      }
+    }
+  
+    // items.push(...data);
     // console.log('data: ', data);
 
+    if (saveTo) {
+      // save to json
+      fs.writeFileSync(saveTo, JSON.stringify(items));
+      console.log (`${sheetName} saved to ${saveTo}`);
+      console.log('total items: ', items.length);
+    }
     // writeToTxt(data, `data/${sheetName}.txt`);
     writeToTxt(data, `data/data.txt`);
   }
@@ -127,12 +190,12 @@ function initInflux(options) {
 
 async function getPoint(item, schema) {
   let d = new Date(`${item.date}T00:00:00`);
+  let tags = { indicator: item.indicator };
+  // if (item.tags) tags = { ...tags, ...item.tags };
 
   const point = {
     measurement: schema.measurement,
-    tags: {
-      indicator: item.indicator,
-    },
+    tags,
     fields: {},
     timestamp: d,
   }
@@ -180,8 +243,10 @@ async function initDb() {
   return db;
 }
 
-async function sendToInflux(metrics) {
+async function sendToInflux(metrics, resend = false) {
   const influx = initInflux(config);
+  // const hosts = await influx.ping(5000);
+  // console.log(hosts);
   const db = await initDb();
 
   const points = [];
@@ -190,20 +255,28 @@ async function sendToInflux(metrics) {
     const search = { date: m.date, indicator: m.indicator };
     const foundRow = db.get('metrics').find(search).value();
 
-    if (foundRow) {
+    if (foundRow && !resend) {
       // console.log('found Row: ', foundRow);
       continue;
     }
 
     const measurement = config.influxdb.measurement || 'indicators';
     const fields = config.influxdb.fields || { value: 'int' };
-    const tags = config.influxdb.tags || ['indicator'];
-    const schema = { measurement, fields, tags };
+    // const tags = config.influxdb.tags || ['indicator'];
+    const schema = { measurement, fields/* , tags */ };
 
     const point = await getPoint(m, schema);
-    db.get('metrics').push(m).write();
+    if (!foundRow) {
+      db.get('metrics').push(m).write();
+    } else {
+      db.get('metrics')
+        .find(search)
+        .assign(m)
+        .write();
+    }
 
     points.push(point);
+    console.log('point: ', JSON.stringify(point));
     // console.log('m: ', m);
 
     if (points.length >= pointsLimit) {
@@ -212,7 +285,10 @@ async function sendToInflux(metrics) {
     }
   }
 
-  await influx.writePoints(points);
+  await influx.writePoints(points, {
+    precision: 'ms',
+    retentionPolicy: 'autogen'
+  });
   console.log(`sent ${points.length} points`);
 }
 
@@ -293,6 +369,8 @@ async function setMetric(m, opts) {
   const sheetName = getSheetNameByDate(new Date(`${m.date}T00:00:00`));
   const sheet = await loadSheet(sheetName);
   const cell = await getCellByMetric(sheet, m);
+  console.log('sheet loaded');
+  console.log('m: ', m);
   if (!cell) {
     console.log('cell for metric not found!');
     process.exit(1);
@@ -325,4 +403,5 @@ module.exports = {
   sendToInflux,
   setMetric,
   sheetsToData,
+  itemsToDataGpt,
 };

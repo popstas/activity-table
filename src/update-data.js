@@ -6,7 +6,7 @@ const {currentMonthSheetName, getSheetNameByDate} = require('./utils');
 
 async function start() {
   const metrics = await processMonthSheet({ sheetName: currentMonthSheetName() });
-  // const metrics = await processMonthSheet({ sheetName: 'Май 2021' });
+  // const metrics = await processMonthSheet({ sheetName: 'Январь 2024' });
 
   // Данные за последнее число месяца не доходят, если я их заполнил после 23
   // Поэтому 1-го числа подгружаем ещё и прошлый месяц
@@ -28,7 +28,11 @@ async function start() {
       return item.date == m.date &&
         item.indicator == m.indicator
     });
-    if (!found) items.push(m);
+    if (found) {
+      Object.assign(found, m);
+    } else {
+      items.push(m);
+    }
   }
 
   console.log('total items: ', items.length);
