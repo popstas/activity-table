@@ -5,6 +5,14 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
+    "mcp-server": "tsx src/mcp/server.ts",
+    "dev": "tsx src/mcp/server.ts",
+    "mcp-cli": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/list",
+    "mcp-tools-list": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/list",
+    "mcp-tool-activity_list_metrics": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_list_metrics --arguments \"{}\"",
+    "mcp-tool-activity_query": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_query --arguments \"{\\\"metric\\\":\\\"Зарядка\\\",\\\"range\\\":\\\"last 7d\\\"}\"",
+    "mcp-tool-activity_aggregate": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_aggregate --arguments \"{\\\"metric\\\":\\\"Зарядка\\\",\\\"range\\\":\\\"last 30d\\\",\\\"agg\\\":\\\"mean\\\"}\"",
+    "mcp-tool-activity_add": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_add --arguments \"{\\\"metric\\\":\\\"Зарядка\\\",\\\"value\\\":\\\"1\\\"}\"",
     "cron-daily": "npm run send-current-month",
     "send-current-month": "node src/send-current-month",
     "send-prev-month": "node src/send-prev-month",
@@ -17,12 +25,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "commander": "^7.2.0",
-    "date-fns": "^2.21.3",
-    "google-spreadsheet": "^3.3.0",
-    "ical-generator": "^2.2.0",
-    "influx": "^5.9.0",
-    "lowdb": "^1.0.0",
-    "sanitize-filename": "^1.6.3"
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "commander": "^14.0.2",
+    "date-fns": "^4.1.0",
+    "google-spreadsheet": "^5.0.2",
+    "ical-generator": "^10.0.0",
+    "influx": "^5.11.0",
+    "lowdb": "^7.0.1",
+    "sanitize-filename": "^1.6.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }
