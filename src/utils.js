@@ -1,4 +1,4 @@
-const ru = require('date-fns/locale/ru');
+const { ru } = require('date-fns/locale');
 const { format } = require('date-fns');
 
 function currentMonthSheetName() {
