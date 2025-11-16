@@ -20,6 +20,13 @@ async function main() {
     }
   );
 
+  // Build dynamic enum for metric names based on available metrics
+  const metricNames = listMetrics({}).map((m) => m.name);
+  const metricSchema =
+    metricNames.length > 0
+      ? z.union(metricNames.map((n) => z.literal(n)))
+      : z.string();
+
   server.tool(
     'activity_list_metrics',
     'Список доступных метрик (индикаторов). Необязательный фильтр по тегу.',
@@ -32,7 +39,7 @@ async function main() {
       return {
         content: [
           {
-            type: 'json',
+            type: 'text',
             text: JSON.stringify(data),
           },
         ],
@@ -44,7 +51,7 @@ async function main() {
     'activity_query',
     'Сырые данные по метрике или тегу за период.',
     {
-      metric: z.string().optional(),
+      metric: metricSchema.optional(),
       tag: z.string().optional(),
       range: z.string().optional(),
       format: z.enum(['json', 'text']).optional(),
@@ -58,7 +65,7 @@ async function main() {
       return {
         content: [
           {
-            type: 'json',
+            type: 'text',
             text: JSON.stringify(rows),
           },
         ],
@@ -70,7 +77,7 @@ async function main() {
     'activity_aggregate',
     'Агрегирование метрик за период: mean, sum, min, max, median, movavg, completion.',
     {
-      metric: z.string().optional(),
+      metric: metricSchema.optional(),
       tag: z.string().optional(),
       range: z.string().optional(),
       agg: z.enum(['mean', 'avg', 'sum', 'min', 'max', 'median', 'movavg', 'completion']),
@@ -85,7 +92,7 @@ async function main() {
       return {
         content: [
           {
-            type: 'json',
+            type: 'text',
             text: JSON.stringify(result),
           },
         ],
@@ -97,7 +104,7 @@ async function main() {
     'activity_add',
     'Добавить или обновить значение метрики в Google Sheets по дате.',
     {
-      metric: z.string(),
+      metric: metricSchema,
       date: z.string().optional(), // YYYY-MM-DD
       value: z.string(), // allow "+N"
       overwrite: z.boolean().optional(),

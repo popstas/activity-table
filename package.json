@@ -9,10 +9,10 @@
     "dev": "tsx src/mcp/server.ts",
     "mcp-cli": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/list",
     "mcp-tools-list": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/list",
-    "mcp-tool-activity_list_metrics": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_list_metrics --arguments \"{}\"",
-    "mcp-tool-activity_query": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_query --arguments \"{\\\"metric\\\":\\\"Зарядка\\\",\\\"range\\\":\\\"last 7d\\\"}\"",
-    "mcp-tool-activity_aggregate": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_aggregate --arguments \"{\\\"metric\\\":\\\"Зарядка\\\",\\\"range\\\":\\\"last 30d\\\",\\\"agg\\\":\\\"mean\\\"}\"",
-    "mcp-tool-activity_add": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_add --arguments \"{\\\"metric\\\":\\\"Зарядка\\\",\\\"value\\\":\\\"1\\\"}\"",
+    "mcp-tool-activity_list_metrics": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_list_metrics",
+    "mcp-tool-activity_query": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_query  --tool-arg metric=Зарядка --tool-arg range=\"last 7d\"",
+    "mcp-tool-activity_aggregate": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_aggregate  --tool-arg metric=Зарядка --tool-arg range=\"last 30d\" --tool-arg agg=mean",
+    "mcp-tool-activity_add": "npx --yes --package @modelcontextprotocol/inspector mcp-inspector --cli npm run mcp-server -- --method tools/call --tool-name activity_add --tool-arg metric=Зарядка --tool-arg value=1",
     "cron-daily": "npm run send-current-month",
     "send-current-month": "node src/send-current-month",
     "send-prev-month": "node src/send-prev-month",
@@ -33,7 +33,7 @@
     "influx": "^5.11.0",
     "lowdb": "^7.0.1",
     "sanitize-filename": "^1.6.3",
-    "zod": "^4.1.12"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
