@@ -81,6 +81,23 @@ export function parseRange(range?: string | null): DateRange {
   return null;
 }
 
+export function parseFromTo(from?: string | null, to?: string | null): DateRange {
+  const fmt = /^\d{4}-\d{2}-\d{2}$/;
+  const hasFrom = typeof from === 'string' && from.length > 0;
+  const hasTo = typeof to === 'string' && to.length > 0;
+  if (!hasFrom && !hasTo) return null;
+  if (hasFrom && !fmt.test(String(from))) {
+    throw new Error('Некорректная дата "from": ожидается формат yyyy-mm-dd');
+  }
+  if (hasTo && !fmt.test(String(to))) {
+    throw new Error('Некорректная дата "to": ожидается формат yyyy-mm-dd');
+  }
+  return {
+    start: hasFrom ? parseISO(String(from)) : null,
+    end: hasTo ? parseISO(String(to)) : null,
+  };
+}
+
 function inRange(dateStr: string, range: DateRange) {
   if (!range) return true;
   const d = parseISO(dateStr);
@@ -89,10 +106,10 @@ function inRange(dateStr: string, range: DateRange) {
   return true;
 }
 
-export function queryActivity(params: { metric?: string; tag?: string; range?: string | null }) {
-  const { metric, tag, range } = params || {};
+export function queryActivity(params: { metric?: string; tag?: string; from?: string | null; to?: string | null }) {
+  const { metric, tag, from, to } = params || {};
   const items = loadItems();
-  const parsedRange = parseRange(range || undefined);
+  const parsedRange = parseFromTo(from || undefined, to || undefined);
   const result = [] as Array<{ date: string; metric: string; value: number }>;
   for (const it of items) {
     if (metric && it.metric !== metric) continue;
@@ -137,9 +154,9 @@ function aggregate(values: number[], agg: string, options: { window?: number } =
   return mean;
 }
 
-export function aggregateActivity(params: { metric?: string; tag?: string; range?: string | null; agg: string; window?: number }) {
-  const { metric, tag, range, agg, window } = params;
-  const rows = queryActivity({ metric, tag, range });
+export function aggregateActivity(params: { metric?: string; tag?: string; from?: string | null; to?: string | null; agg: string; window?: number }) {
+  const { metric, tag, from, to, agg, window } = params;
+  const rows = queryActivity({ metric, tag, from, to });
   if (agg === 'movavg') {
     const byDate = rows.map(r => ({ date: r.date, value: r.value }));
     const series = aggregate(byDate.map(r => r.value), 'movavg', { window }) as number[];
@@ -151,6 +168,15 @@ export function aggregateActivity(params: { metric?: string; tag?: string; range
   }
   const value = aggregate(rows.map(r => r.value), agg) as number | null;
   return { agg, value, count: rows.length };
+}
+
+export function rowsToCompact(rows: Array<{ date: string; metric: string; value: number }>): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const r of rows) {
+    if (!out[r.metric]) out[r.metric] = {};
+    out[r.metric][r.date] = Number(r.value);
+  }
+  return out;
 }
 
 
